@@ -19,6 +19,7 @@ node_modules/
 scratch/
 dist/
 build/
+.netlify/
 
 # IDE & Editor files
 .vscode/
