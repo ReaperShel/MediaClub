@@ -1,0 +1,1 @@
+DELETE FROM public.club_events WHERE title = 'Playwright Test Event';

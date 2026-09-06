@@ -1,0 +1,1 @@
+update public.club_events set event_date = current_date + 30, registration_deadline = current_date + 21 where title = 'test 1';
