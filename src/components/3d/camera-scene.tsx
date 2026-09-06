@@ -2,6 +2,7 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useCallback, useState, memo } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { PerformanceMonitor } from "@react-three/drei";
 import { useTransition } from "@/components/transition-context";
 
 const glbCache = new Map<string, { scene: THREE.Group; box: THREE.Box3 }>();
@@ -150,6 +151,9 @@ const CameraModel = memo(function CameraModel({
   parallaxMouse,
   responsivePosition,
   responsiveScale,
+  isVisible,
+  isTabVisible,
+  isMobile,
 }: {
   modelConfig: ModelConfig;
   onHover: (id: string | null) => void;
@@ -161,6 +165,9 @@ const CameraModel = memo(function CameraModel({
   parallaxMouse: { x: number; y: number };
   responsivePosition: { x: number; z: number };
   responsiveScale: number;
+  isVisible: boolean;
+  isTabVisible: boolean;
+  isMobile: boolean;
 }) {
   const placementRef = useRef<THREE.Group>(null);
   const hoverRef = useRef<THREE.Group>(null);
@@ -450,6 +457,8 @@ const CameraModel = memo(function CameraModel({
   }, [responsiveScale]);
 
   useFrame((_, delta) => {
+    if (!isVisible || !isTabVisible) return;
+
     const enableParallax = !isDragging && !isTransitioning && !prefersReducedMotion;
 
     const pmx = enableParallax ? parallaxMouse.x : 0;
@@ -499,7 +508,9 @@ const CameraModel = memo(function CameraModel({
       tiltRef.current.rotation.x = hoverAnimRef.current.rotX;
     }
 
-    if (!prefersReducedMotion && materialBoostsRef.current.size > 0) {
+    const needsMaterialUpdate =
+      isHovered || isFocused || isDimmed || focusOpacityRef.current < 0.98;
+    if (!prefersReducedMotion && materialBoostsRef.current.size > 0 && needsMaterialUpdate) {
       const boostTarget = isHovered && enableHover ? 1 : 0;
       const boostT = 1 - Math.exp(-8 * delta);
       materialBoostsRef.current.forEach((original, mesh) => {
@@ -561,7 +572,13 @@ function ParallaxGroup({ children }: { children: React.ReactNode }) {
   return <group>{children}</group>;
 }
 
-function useParallaxMouse(isVisible: boolean, isDragging: boolean, isTransitioning: boolean) {
+function useParallaxMouse(
+  isVisible: boolean,
+  isDragging: boolean,
+  isTransitioning: boolean,
+  isTabVisible: boolean,
+  isMobile: boolean
+) {
   const { gl } = useThree();
   const target = useRef({ x: 0, y: 0 });
   const smooth = useRef({ x: 0, y: 0 });
@@ -570,6 +587,8 @@ function useParallaxMouse(isVisible: boolean, isDragging: boolean, isTransitioni
   const isDraggingRef = useRef(isDragging);
   const isTransitioningRef = useRef(isTransitioning);
   const isVisibleRef = useRef(isVisible);
+  const isTabVisibleRef = useRef(isTabVisible);
+  const isMobileRef = useRef(isMobile);
 
   useEffect(() => {
     isDraggingRef.current = isDragging;
@@ -580,6 +599,12 @@ function useParallaxMouse(isVisible: boolean, isDragging: boolean, isTransitioni
   useEffect(() => {
     isVisibleRef.current = isVisible;
   }, [isVisible]);
+  useEffect(() => {
+    isTabVisibleRef.current = isTabVisible;
+  }, [isTabVisible]);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -596,7 +621,7 @@ function useParallaxMouse(isVisible: boolean, isDragging: boolean, isTransitioni
   }, []);
 
   useEffect(() => {
-    if (prefersReducedMotionRef.current || isTouchDeviceRef.current) return;
+    if (prefersReducedMotionRef.current || isTouchDeviceRef.current || isMobileRef.current) return;
     const canvas = gl.domElement;
     const handleMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -618,10 +643,11 @@ function useParallaxMouse(isVisible: boolean, isDragging: boolean, isTransitioni
   }, [gl]);
 
   useFrame((_, delta) => {
-    if (!isVisibleRef.current) return;
+    if (!isVisibleRef.current || !isTabVisibleRef.current) return;
     if (
       prefersReducedMotionRef.current ||
       isTouchDeviceRef.current ||
+      isMobileRef.current ||
       isTransitioningRef.current ||
       isDraggingRef.current
     ) {
@@ -692,6 +718,8 @@ const ShelfLight = memo(function ShelfLight({
   lightZOffset,
   cameraPosition,
   shadowSize,
+  isMobile,
+  isVisible,
   onToggle,
 }: {
   cameraConfig: ModelConfig;
@@ -699,6 +727,8 @@ const ShelfLight = memo(function ShelfLight({
   lightZOffset: number;
   cameraPosition: { x: number; z: number };
   shadowSize: number;
+  isMobile: boolean;
+  isVisible: boolean;
   onToggle?: () => void;
 }) {
   const lightRef = useRef<THREE.SpotLight>(null);
@@ -725,20 +755,22 @@ const ShelfLight = memo(function ShelfLight({
   ];
 
   useFrame((_, delta) => {
+    if (!isVisible) return;
+
     const target = active ? 1 : 0;
     const lerpFactor = 1 - Math.exp(-10 * delta);
     currentIntensity.current = THREE.MathUtils.lerp(currentIntensity.current, target, lerpFactor);
     const val = currentIntensity.current;
 
     if (lightRef.current) {
-      lightRef.current.intensity = val * 85;
-      lightRef.current.castShadow = val > 0.01;
+      lightRef.current.intensity = val * (isMobile ? 55 : 85);
+      lightRef.current.castShadow = val > 0.01 && !isMobile;
     }
     if (fillLightRef.current) {
-      fillLightRef.current.intensity = val * 14;
+      fillLightRef.current.intensity = val * (isMobile ? 8 : 14);
     }
     if (frontFillRef.current) {
-      frontFillRef.current.intensity = val * 10;
+      frontFillRef.current.intensity = val * (isMobile ? 5 : 10);
     }
     if (glowRef.current) {
       glowRef.current.emissiveIntensity = val * 8;
@@ -760,15 +792,15 @@ const ShelfLight = memo(function ShelfLight({
         target={targetObj}
         angle={0.7}
         penumbra={0.6}
-        distance={18}
+        distance={isMobile ? 12 : 18}
         decay={1.2}
         intensity={0}
         color="#fff5e8"
-        castShadow
+        castShadow={!isMobile}
         shadow-mapSize-width={shadowSize}
         shadow-mapSize-height={shadowSize}
         shadow-camera-near={0.1}
-        shadow-camera-far={12}
+        shadow-camera-far={isMobile ? 8 : 12}
         shadow-camera-left={-3}
         shadow-camera-right={3}
         shadow-camera-top={3}
@@ -780,7 +812,7 @@ const ShelfLight = memo(function ShelfLight({
         ref={fillLightRef}
         position={fillPos}
         intensity={0}
-        distance={10}
+        distance={isMobile ? 6 : 10}
         decay={1.5}
         color="#fff8f0"
       />
@@ -788,7 +820,7 @@ const ShelfLight = memo(function ShelfLight({
         ref={frontFillRef}
         position={frontFillPos}
         intensity={0}
-        distance={8}
+        distance={isMobile ? 5 : 8}
         decay={1.5}
         color="#fff6ec"
       />
@@ -848,11 +880,15 @@ function Scene({
   onHover,
   shadowSize,
   isVisible,
+  isTabVisible,
+  isMobile,
 }: {
   hoveredId: string | null;
   onHover: (id: string | null) => void;
   shadowSize: number;
   isVisible: boolean;
+  isTabVisible: boolean;
+  isMobile: boolean;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [breakpoint, setBreakpoint] = useState(() => {
@@ -863,7 +899,13 @@ function Scene({
     return "mobile";
   });
   const { startTransition, isTransitioning, transitioningId } = useTransition();
-  const parallaxMouse = useParallaxMouse(isVisible, isDragging, isTransitioning);
+  const parallaxMouse = useParallaxMouse(
+    isVisible,
+    isDragging,
+    isTransitioning,
+    isTabVisible,
+    isMobile
+  );
   const [lightToggled, setLightToggled] = useState<Set<string>>(new Set());
   const focusPointRef = useRef<{ x: number; y: number } | null>(null);
   const { gl } = useThree();
@@ -956,6 +998,9 @@ function Scene({
             parallaxMouse={parallaxMouse}
             responsivePosition={responsivePos}
             responsiveScale={responsiveScale}
+            isVisible={isVisible}
+            isTabVisible={isTabVisible}
+            isMobile={isMobile}
           />
         );
       })}
@@ -970,6 +1015,8 @@ function Scene({
             lightZOffset={breakpoint === "mobile" ? MOBILE_LIGHT_Z_OFFSET : -0.8}
             cameraPosition={pos}
             shadowSize={shadowSize}
+            isMobile={isMobile}
+            isVisible={isVisible}
             onToggle={() =>
               setLightToggled((prev) => {
                 const next = new Set(prev);
@@ -1011,34 +1058,43 @@ export function CameraScene({
   const [height, setHeight] = useState("70vh");
   const [shadowSize, setShadowSize] = useState(1024);
   const [isVisible, setIsVisible] = useState(true);
+  const [isTabVisible, setIsTabVisible] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [dpr, setDpr] = useState<[number, number]>([1, 1.5]);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 768;
+  });
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(mq.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
   useEffect(() => {
-    const update = () => {
+    const handleResize = () => {
       const width = window.innerWidth;
       if (width < 768) {
         setHeight("85vh");
         setShadowSize(512);
+        setIsMobile(true);
       } else if (width < 1200) {
         setHeight("70vh");
         setShadowSize(1024);
+        setIsMobile(false);
       } else {
         setHeight("70vh");
         setShadowSize(1024);
+        setIsMobile(false);
       }
     };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -1052,6 +1108,15 @@ export function CameraScene({
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const handleSceneReady = useCallback(() => {
@@ -1074,22 +1139,35 @@ export function CameraScene({
       >
         <Canvas
           camera={{ position: [0, 1.5, 18], fov: 35, near: 0.01, far: 100 }}
-          dpr={[1, 1.5]}
+          dpr={dpr}
           shadows
           gl={{
-            antialias: true,
+            antialias: !isMobile,
             alpha: true,
             powerPreference: "high-performance",
           }}
         >
           <Suspense fallback={null}>
-            <Scene
-              hoveredId={hoveredId}
-              onHover={onHover}
-              shadowSize={shadowSize}
-              isVisible={isVisible}
-            />
-            <SceneReadySignal onReady={handleSceneReady} />
+            <PerformanceMonitor
+              ms={1000}
+              iterations={20}
+              threshold={0.05}
+              flipflops={3}
+              step={0.1}
+              bounds={() => [30, 55] as [number, number]}
+              onDecline={() => setDpr([1, 1])}
+              onIncline={() => setDpr([1, 1.5])}
+            >
+              <Scene
+                hoveredId={hoveredId}
+                onHover={onHover}
+                shadowSize={shadowSize}
+                isVisible={isVisible}
+                isTabVisible={isTabVisible}
+                isMobile={isMobile}
+              />
+              <SceneReadySignal onReady={handleSceneReady} />
+            </PerformanceMonitor>
           </Suspense>
         </Canvas>
       </div>
