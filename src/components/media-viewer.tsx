@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { interactiveSpring } from "@/components/ui/motion-variants";
 
 export type MediaItem = {
   id: string;
@@ -70,7 +69,6 @@ function MediaViewer({
   const [index, setIndex] = useState(initialIndex);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [direction, setDirection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLImageElement | HTMLVideoElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -81,7 +79,6 @@ function MediaViewer({
   const go = useCallback(
     (delta: number) => {
       if (total <= 1) return;
-      setDirection(delta > 0 ? 1 : -1);
       setLoading(true);
       setError(false);
       setIndex((prev) => (prev + delta + total) % total);
@@ -172,24 +169,6 @@ function MediaViewer({
   const navBtn =
     "flex h-12 w-12 items-center justify-center border border-border bg-background/70 text-foreground backdrop-blur transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
-  const motionVariants = {
-    enter: { opacity: 0, scale: 0.98 },
-    center: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.98 },
-  };
-
-  const slideVariants = {
-    enter: (dir: number) => ({
-      opacity: 0,
-      x: dir > 0 ? 40 : -40,
-    }),
-    center: { opacity: 1, x: 0 },
-    exit: (dir: number) => ({
-      opacity: 0,
-      x: dir > 0 ? -40 : 40,
-    }),
-  };
-
   return (
     <motion.div
       ref={containerRef}
@@ -245,8 +224,6 @@ function MediaViewer({
           </button>
         </div>
       </button>
-      // prettier-ignore /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-      */
       <section
         className="flex flex-1 items-center justify-center overflow-hidden px-3 py-5 sm:px-8"
         onTouchStart={handleTouchStart}
@@ -296,44 +273,35 @@ function MediaViewer({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                <span className="label-caps text-muted-foreground">Unable to load this media.</span>
+                <span className="label-caps text-muted-foreground">Media could not be loaded.</span>
               </motion.div>
-            ) : current.type === "image" ? (
-              <motion.img
-                key={current.id}
-                ref={mediaRef as React.RefObject<HTMLImageElement>}
-                src={current.url}
-                alt={current.title}
-                className="max-h-[75vh] max-w-full object-contain"
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                custom={direction}
-                transition={interactiveSpring}
-                onLoad={() => setLoading(false)}
-                onError={() => setError(true)}
-              />
-            ) : (
-              <motion.video
-                key={current.id}
-                ref={mediaRef as React.RefObject<HTMLVideoElement>}
-                src={current.url}
-                controls
-                preload="metadata"
-                playsInline
-                className="max-h-[75vh] max-w-full"
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                custom={direction}
-                transition={interactiveSpring}
-                onLoadedData={() => setLoading(false)}
-                onError={() => setError(true)}
-              />
-            )}
+            ) : null}
           </AnimatePresence>
+
+          {current.type === "image" ? (
+            <img
+              key={current.id}
+              ref={mediaRef as React.RefObject<HTMLImageElement>}
+              src={current.url}
+              alt={current.title ?? ""}
+              className="max-h-[75vh] max-w-full object-contain"
+              style={{ visibility: loading && !error ? "hidden" : "visible" }}
+              onLoad={() => setLoading(false)}
+              onError={() => setError(true)}
+            />
+          ) : (
+            <video
+              key={current.id}
+              ref={mediaRef as React.RefObject<HTMLVideoElement>}
+              src={current.url}
+              controls
+              preload="auto"
+              playsInline
+              className="max-h-[75vh] max-w-full"
+              onLoadedData={() => setLoading(false)}
+              onError={() => setError(true)}
+            />
+          )}
         </div>
 
         {total > 1 ? (
@@ -350,7 +318,6 @@ function MediaViewer({
           </button>
         ) : null}
       </section>
-      {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="border-t border-white/10 px-5 py-4">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-1">
           {current.date ? <span className="label-caps text-white/50">{current.date}</span> : null}

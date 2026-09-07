@@ -898,6 +898,7 @@ function Scene({
     if (width >= 768) return "tablet";
     return "mobile";
   });
+  const [compositionScale, setCompositionScale] = useState(1);
   const { startTransition, isTransitioning, transitioningId } = useTransition();
   const parallaxMouse = useParallaxMouse(
     isVisible,
@@ -908,29 +909,7 @@ function Scene({
   );
   const [lightToggled, setLightToggled] = useState<Set<string>>(new Set());
   const focusPointRef = useRef<{ x: number; y: number } | null>(null);
-  const { gl } = useThree();
-
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width >= 1200) setBreakpoint("desktop");
-      else if (width >= 768) setBreakpoint("tablet");
-      else setBreakpoint("mobile");
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const shelfConfig =
-    breakpoint === "mobile" ? MOBILE_SHELF : breakpoint === "tablet" ? TABLET_SHELF : DESKTOP_SHELF;
-  const positions =
-    breakpoint === "mobile"
-      ? MOBILE_POSITIONS
-      : breakpoint === "tablet"
-        ? TABLET_POSITIONS
-        : DESKTOP_POSITIONS;
-  const scaleMultiplier =
-    breakpoint === "mobile" ? MOBILE_SCALE : breakpoint === "tablet" ? TABLET_SCALE : DESKTOP_SCALE;
+  const { gl, camera } = useThree();
 
   useEffect(() => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -938,6 +917,35 @@ function Scene({
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
   }, [gl]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 1200) setBreakpoint("desktop");
+      else if (width >= 768) setBreakpoint("tablet");
+      else setBreakpoint("mobile");
+
+      if (width < 768) {
+        setCompositionScale(0.55);
+        return;
+      }
+
+      const pcamera = camera as THREE.PerspectiveCamera;
+      const aspect = width / window.innerHeight;
+      const vFov = pcamera.fov * (Math.PI / 180);
+      const viewportHeight = 2 * Math.tan(vFov / 2) * pcamera.position.z;
+      const viewportWidth = viewportHeight * aspect;
+      const photosX = Math.abs(DESKTOP_POSITIONS["photos"]?.x ?? 0);
+      const newsX = Math.abs(DESKTOP_POSITIONS["news"]?.x ?? 0);
+      const naturalWidth = photosX + newsX;
+      const targetWidth = viewportWidth * 0.85;
+      const scale = Math.min(1.0, targetWidth / naturalWidth);
+      setCompositionScale(scale);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [camera]);
 
   const handleFocusPoint = useCallback((point: { x: number; y: number }) => {
     focusPointRef.current = point;
@@ -957,77 +965,90 @@ function Scene({
     }
   }, [isTransitioning]);
 
+  const shelfConfig =
+    breakpoint === "mobile" ? MOBILE_SHELF : breakpoint === "tablet" ? TABLET_SHELF : DESKTOP_SHELF;
+  const positions =
+    breakpoint === "mobile"
+      ? MOBILE_POSITIONS
+      : breakpoint === "tablet"
+        ? TABLET_POSITIONS
+        : DESKTOP_POSITIONS;
+  const scaleMultiplier =
+    breakpoint === "mobile" ? MOBILE_SCALE : breakpoint === "tablet" ? TABLET_SCALE : DESKTOP_SCALE;
+
   return (
     <ParallaxGroup>
-      <ambientLight intensity={0.2} />
-      <directionalLight
-        position={[2, 6, 4]}
-        intensity={0.35}
-        color="#ffe8d0"
-        castShadow
-        shadow-mapSize-width={shadowSize}
-        shadow-mapSize-height={shadowSize}
-        shadow-camera-left={-12}
-        shadow-camera-right={12}
-        shadow-camera-top={6}
-        shadow-camera-bottom={-6}
-        shadow-camera-near={0.5}
-        shadow-camera-far={20}
-        shadow-bias={-0.0002}
-        shadow-normalBias={0.1}
-      />
-      <ShelfDisplay
-        width={shelfConfig.width}
-        depth={shelfConfig.depth}
-        backWallZ={shelfConfig.backWallZ}
-        ceilingY={shelfConfig.ceilingY}
-      />
-      {MODELS.map((m) => {
-        const responsivePos = positions[m.id] || DESKTOP_POSITIONS[m.id] || m.position;
-        const responsiveScale = scaleMultiplier;
-        return (
-          <CameraModel
-            key={m.id}
-            modelConfig={m}
-            onHover={onHover}
-            onDragChange={setIsDragging}
-            onCameraClick={handleCameraClick}
-            onFocusPoint={handleFocusPoint}
-            transitioningId={transitioningId}
-            isTransitioning={isTransitioning}
-            parallaxMouse={parallaxMouse}
-            responsivePosition={responsivePos}
-            responsiveScale={responsiveScale}
-            isVisible={isVisible}
-            isTabVisible={isTabVisible}
-            isMobile={isMobile}
-          />
-        );
-      })}
-      {MODELS.map((m) => {
-        const pos = positions[m.id] || DESKTOP_POSITIONS[m.id] || m.position;
-        const isToggled = lightToggled.has(m.id);
-        return (
-          <ShelfLight
-            key={`light-${m.id}`}
-            cameraConfig={m}
-            active={hoveredId === m.id || isToggled}
-            lightZOffset={breakpoint === "mobile" ? MOBILE_LIGHT_Z_OFFSET : -0.8}
-            cameraPosition={pos}
-            shadowSize={shadowSize}
-            isMobile={isMobile}
-            isVisible={isVisible}
-            onToggle={() =>
-              setLightToggled((prev) => {
-                const next = new Set(prev);
-                if (next.has(m.id)) next.delete(m.id);
-                else next.add(m.id);
-                return next;
-              })
-            }
-          />
-        );
-      })}
+      <group scale={compositionScale}>
+        <ambientLight intensity={0.2} />
+        <directionalLight
+          position={[2, 6, 4]}
+          intensity={0.35}
+          color="#ffe8d0"
+          castShadow
+          shadow-mapSize-width={shadowSize}
+          shadow-mapSize-height={shadowSize}
+          shadow-camera-left={-12}
+          shadow-camera-right={12}
+          shadow-camera-top={6}
+          shadow-camera-bottom={-6}
+          shadow-camera-near={0.5}
+          shadow-camera-far={20}
+          shadow-bias={-0.0002}
+          shadow-normalBias={0.1}
+        />
+        <ShelfDisplay
+          width={shelfConfig.width}
+          depth={shelfConfig.depth}
+          backWallZ={shelfConfig.backWallZ}
+          ceilingY={shelfConfig.ceilingY}
+        />
+        {MODELS.map((m) => {
+          const responsivePos = positions[m.id] || DESKTOP_POSITIONS[m.id] || m.position;
+          const responsiveScale = scaleMultiplier;
+          return (
+            <CameraModel
+              key={m.id}
+              modelConfig={m}
+              onHover={onHover}
+              onDragChange={setIsDragging}
+              onCameraClick={handleCameraClick}
+              onFocusPoint={handleFocusPoint}
+              transitioningId={transitioningId}
+              isTransitioning={isTransitioning}
+              parallaxMouse={parallaxMouse}
+              responsivePosition={responsivePos}
+              responsiveScale={responsiveScale}
+              isVisible={isVisible}
+              isTabVisible={isTabVisible}
+              isMobile={isMobile}
+            />
+          );
+        })}
+        {MODELS.map((m) => {
+          const pos = positions[m.id] || DESKTOP_POSITIONS[m.id] || m.position;
+          const isToggled = lightToggled.has(m.id);
+          return (
+            <ShelfLight
+              key={`light-${m.id}`}
+              cameraConfig={m}
+              active={hoveredId === m.id || isToggled}
+              lightZOffset={breakpoint === "mobile" ? MOBILE_LIGHT_Z_OFFSET : -0.8}
+              cameraPosition={pos}
+              shadowSize={shadowSize}
+              isMobile={isMobile}
+              isVisible={isVisible}
+              onToggle={() =>
+                setLightToggled((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(m.id)) next.delete(m.id);
+                  else next.add(m.id);
+                  return next;
+                })
+              }
+            />
+          );
+        })}
+      </group>
     </ParallaxGroup>
   );
 }
