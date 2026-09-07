@@ -297,17 +297,21 @@ export function CameraHero() {
         </div>
       )}
 
-      <ul className="mt-5 grid grid-cols-1 place-items-center gap-3 sm:grid-cols-2 md:mt-7 lg:grid-cols-4 lg:gap-4">
+      <ul className="mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[5px] pb-2 md:mt-7 [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:place-items-center md:overflow-visible md:px-0 lg:grid-cols-4 lg:gap-4">
         {cameraHotspots.map((h) => {
           const camId = routeToId[h.to] ?? null;
           const active = hoveredBottomCard === camId && camId !== null;
           return (
-            <li key={h.cam} className="flex justify-center">
+            <li
+              key={h.cam}
+              className="snap-start shrink-0 md:shrink-0"
+              style={{ width: "clamp(150px, 40vw, 200px)" }}
+            >
               <MotionLink
                 to={h.to}
                 onMouseEnter={() => handleCardHover(camId)}
                 onMouseLeave={() => handleCardHover(null)}
-                className="group flex h-[130px] w-[220px] min-w-[220px] max-w-[220px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-4 py-4 text-center backdrop-blur-sm"
+                className="group flex w-full min-w-0 h-auto flex-col items-center justify-center gap-1.5 rounded-[14px] border px-4 py-3.5 text-center backdrop-blur-sm md:h-[130px] md:w-[220px] md:max-w-[220px] md:min-w-[220px]"
                 style={{
                   borderColor: active ? "var(--primary)" : "rgba(255,255,255,0.12)",
                   background: active ? "rgba(255,154,60,0.06)" : "rgba(255,255,255,0.02)",

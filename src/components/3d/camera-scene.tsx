@@ -1,4 +1,4 @@
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Canvas, useThree, useFrame, invalidate } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useCallback, useState, memo } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -44,7 +44,7 @@ const TARGET_Y = -1.6;
 const MODELS: ModelConfig[] = [
   {
     id: "photos",
-    path: "/models/polaroid_one_step_camera.glb",
+    path: "/models/optimized/polaroid_one_step_camera.glb",
     label: "PHOTOS",
     route: "/photos",
     baseRotation: {
@@ -59,7 +59,7 @@ const MODELS: ModelConfig[] = [
   },
   {
     id: "highlights",
-    path: "/models/gopro_hero_8.glb",
+    path: "/models/optimized/gopro_hero_8.glb",
     label: "HIGHLIGHTS",
     route: "/highlights",
     baseRotation: { x: THREE.MathUtils.degToRad(7), y: 0, z: 0 },
@@ -70,7 +70,7 @@ const MODELS: ModelConfig[] = [
   },
   {
     id: "videos",
-    path: "/models/enhanced_camera_web.glb",
+    path: "/models/optimized/enhanced_camera_web.glb",
     label: "VIDEOS",
     route: "/videos",
     baseRotation: { x: 0, y: THREE.MathUtils.degToRad(-25), z: 0 },
@@ -81,7 +81,7 @@ const MODELS: ModelConfig[] = [
   },
   {
     id: "news",
-    path: "/models/canon_at-1_retro_camera.glb",
+    path: "/models/optimized/canon_at-1_retro_camera.glb",
     label: "CAMPUS NEWS",
     route: "/news",
     baseRotation: { x: 0, y: 0, z: 0 },
@@ -240,6 +240,7 @@ const CameraModel = memo(function CameraModel({
       totalDragRef.current = 0;
       setIsDragging(true);
       onDragChange?.(true);
+      invalidate();
     },
     [onDragChange]
   );
@@ -257,6 +258,7 @@ const CameraModel = memo(function CameraModel({
       );
       totalDragRef.current = Math.max(totalDragRef.current, dist);
     }
+    invalidate();
   }, []);
 
   const handlePointerUp = useCallback(() => {
@@ -286,11 +288,13 @@ const CameraModel = memo(function CameraModel({
   const handlePointerOver = useCallback(() => {
     setIsHovered(true);
     onHover(modelConfig.id);
+    invalidate();
   }, [modelConfig.id, onHover]);
 
   const handlePointerOut = useCallback(() => {
     setIsHovered(false);
     onHover(null);
+    invalidate();
   }, [onHover]);
 
   useEffect(() => {
@@ -413,6 +417,7 @@ const CameraModel = memo(function CameraModel({
         setCachedGLB(modelConfig.path, scene, box);
         const cloned = scene.clone(true);
         processScene(cloned);
+        invalidate();
       },
       undefined,
       (error) => {
@@ -537,6 +542,15 @@ const CameraModel = memo(function CameraModel({
         });
       });
     }
+
+    const hoverActive = enableHover && (isHovered || isFocused || isDimmed);
+    const animStillRunning =
+      Math.abs(hoverAnimRef.current.scale - targetScale) > 0.001 ||
+      Math.abs(hoverAnimRef.current.z - targetZ) > 0.001 ||
+      Math.abs(focusOpacityRef.current - targetFocusOpacity) > 0.001;
+    if ((enableParallax && (pmx !== 0 || pmy !== 0)) || hoverActive || animStillRunning) {
+      invalidate();
+    }
   });
 
   return (
@@ -627,6 +641,7 @@ function useParallaxMouse(
       const rect = canvas.getBoundingClientRect();
       target.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       target.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      invalidate();
     };
     const handleLeave = () => {
       target.current.x = 0;
@@ -660,6 +675,12 @@ function useParallaxMouse(
 
     smooth.current.x += (target.current.x - smooth.current.x) * t;
     smooth.current.y += (target.current.y - smooth.current.y) * t;
+
+    const dx = smooth.current.x - target.current.x;
+    const dy = smooth.current.y - target.current.y;
+    if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+      invalidate();
+    }
   });
 
   return smooth.current;
@@ -778,6 +799,10 @@ const ShelfLight = memo(function ShelfLight({
     }
     if (housingRef.current) {
       housingRef.current.emissiveIntensity = val * 1.5;
+    }
+
+    if (Math.abs(currentIntensity.current - target) > 0.001) {
+      invalidate();
     }
   });
 
@@ -1037,14 +1062,15 @@ function Scene({
               shadowSize={shadowSize}
               isMobile={isMobile}
               isVisible={isVisible}
-              onToggle={() =>
+              onToggle={() => {
                 setLightToggled((prev) => {
                   const next = new Set(prev);
                   if (next.has(m.id)) next.delete(m.id);
                   else next.add(m.id);
                   return next;
-                })
-              }
+                });
+                invalidate();
+              }}
             />
           );
         })}
@@ -1082,7 +1108,7 @@ export function CameraScene({
   const [isTabVisible, setIsTabVisible] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [dpr, setDpr] = useState<[number, number]>([1, 1.5]);
+  const [dpr, setDpr] = useState<[number, number]>([1, 1.25]);
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth < 768;
@@ -1161,6 +1187,7 @@ export function CameraScene({
         <Canvas
           camera={{ position: [0, 1.5, 18], fov: 35, near: 0.01, far: 100 }}
           dpr={dpr}
+          frameloop="demand"
           shadows
           gl={{
             antialias: !isMobile,
@@ -1175,9 +1202,9 @@ export function CameraScene({
               threshold={0.05}
               flipflops={3}
               step={0.1}
-              bounds={() => [30, 55] as [number, number]}
+              bounds={() => [30, 45] as [number, number]}
               onDecline={() => setDpr([1, 1])}
-              onIncline={() => setDpr([1, 1.5])}
+              onIncline={() => setDpr([1, 1.25])}
             >
               <Scene
                 hoveredId={hoveredId}
