@@ -6,6 +6,7 @@ import { cameraHotspots } from "./camera-hotspots";
 import { useTransition } from "@/components/transition-context";
 import { MotionLink } from "@/components/ui/motion-link";
 import { interactiveSpring } from "@/components/ui/motion-variants";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const routeToId: Record<string, string> = {
   "/photos": "photos",
@@ -165,6 +166,7 @@ export function CameraHero() {
     if (width >= 768) return "tablet";
     return "mobile";
   });
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handleResize = () => {
@@ -225,73 +227,75 @@ export function CameraHero() {
         </div>
       </div>
 
-      <div
-        className="relative w-full"
-        style={{
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          width: "100vw",
-        }}
-      >
-        <CameraScene hoveredId={hovered3DCamera} onHover={handle3DHover} />
-        <LensZoomOverlay />
-        <div className="absolute inset-0" style={{ pointerEvents: "none", zIndex: 2 }}>
-          {LABEL_IDS.map((id) => {
-            const isActive = hovered3DCamera === id;
-            const positions =
-              breakpoint === "mobile"
-                ? LABEL_POSITIONS_MOBILE
-                : breakpoint === "tablet"
-                  ? LABEL_POSITIONS_TABLET
-                  : LABEL_POSITIONS;
-            const left = positions[id]?.left ?? "50%";
-            return (
-              <motion.button
-                key={id}
-                type="button"
-                onClick={(e) => handleLabelClick(id, e)}
-                className="label-caps absolute -translate-x-1/2 cursor-pointer select-none border-none bg-transparent p-0 text-left font-normal outline-none"
-                style={{
-                  left: left,
-                  bottom: "10%",
-                  color: isActive ? "var(--primary, #f97316)" : "rgba(255,255,255,0.85)",
-                  opacity: isActive ? 1 : 0.65,
-                  letterSpacing: isActive ? "0.22em" : "0.16em",
-                  fontSize: "clamp(0.7rem, 1.2vw, 0.85rem)",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                  whiteSpace: "nowrap",
-                  pointerEvents: "auto",
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{
-                  ...interactiveSpring,
-                  ...(isActive
-                    ? {
-                        color: { duration: 0.25 },
-                        opacity: { duration: 0.25 },
-                        letterSpacing: { duration: 0.25 },
-                      }
-                    : {}),
-                }}
-              >
-                {labelText[id] ?? id.toUpperCase()}
-                <motion.span
-                  className="block h-px bg-primary"
+      {!isMobile && (
+        <div
+          className="relative w-full"
+          style={{
+            marginLeft: "calc(50% - 50vw)",
+            marginRight: "calc(50% - 50vw)",
+            width: "100vw",
+          }}
+        >
+          <CameraScene hoveredId={hovered3DCamera} onHover={handle3DHover} />
+          <LensZoomOverlay />
+          <div className="absolute inset-0" style={{ pointerEvents: "none", zIndex: 2 }}>
+            {LABEL_IDS.map((id) => {
+              const isActive = hovered3DCamera === id;
+              const positions =
+                breakpoint === "mobile"
+                  ? LABEL_POSITIONS_MOBILE
+                  : breakpoint === "tablet"
+                    ? LABEL_POSITIONS_TABLET
+                    : LABEL_POSITIONS;
+              const left = positions[id]?.left ?? "50%";
+              return (
+                <motion.button
+                  key={id}
+                  type="button"
+                  onClick={(e) => handleLabelClick(id, e)}
+                  className="label-caps absolute -translate-x-1/2 cursor-pointer select-none border-none bg-transparent p-0 text-left font-normal outline-none"
                   style={{
-                    margin: "4px auto 0",
-                    backgroundColor: "var(--primary, #f97316)",
-                    opacity: isActive ? 0.9 : 0,
+                    left: left,
+                    bottom: "10%",
+                    color: isActive ? "var(--primary, #f97316)" : "rgba(255,255,255,0.85)",
+                    opacity: isActive ? 1 : 0.65,
+                    letterSpacing: isActive ? "0.22em" : "0.16em",
+                    fontSize: "clamp(0.7rem, 1.2vw, 0.85rem)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+                    whiteSpace: "nowrap",
+                    pointerEvents: "auto",
                   }}
-                  initial={{ width: "0%" }}
-                  animate={{ width: isActive ? "50%" : "0%" }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                />
-              </motion.button>
-            );
-          })}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{
+                    ...interactiveSpring,
+                    ...(isActive
+                      ? {
+                          color: { duration: 0.25 },
+                          opacity: { duration: 0.25 },
+                          letterSpacing: { duration: 0.25 },
+                        }
+                      : {}),
+                  }}
+                >
+                  {labelText[id] ?? id.toUpperCase()}
+                  <motion.span
+                    className="block h-px bg-primary"
+                    style={{
+                      margin: "4px auto 0",
+                      backgroundColor: "var(--primary, #f97316)",
+                      opacity: isActive ? 0.9 : 0,
+                    }}
+                    initial={{ width: "0%" }}
+                    animate={{ width: isActive ? "50%" : "0%" }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  />
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <ul className="mt-5 grid grid-cols-1 place-items-center gap-3 sm:grid-cols-2 md:mt-7 lg:grid-cols-4 lg:gap-4">
         {cameraHotspots.map((h) => {
