@@ -35,12 +35,10 @@ function AnimatedContainer({
 }
 
 function FeatureCardInner({ feature }: { feature: CategoryCard }) {
-  const Icon = feature.icon;
-
   return (
     <Link
       to={feature.to}
-      className="feature-card group relative flex flex-col justify-between overflow-hidden bg-background p-7 sm:p-8 md:p-9 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="feature-card group relative flex flex-col justify-end overflow-hidden bg-background p-7 sm:p-8 md:p-9 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minHeight: "clamp(240px, 26vw, 290px)" }}
     >
       <div
@@ -71,13 +69,7 @@ function FeatureCardInner({ feature }: { feature: CategoryCard }) {
             "radial-gradient(ellipse 70% 50% at 50% -10%, black 25%, transparent 70%)",
         }}
       />
-      <div className="relative z-10 flex flex-col justify-between h-full gap-6">
-        <div>
-          <Icon
-            className="h-5 w-5 text-muted-foreground transition-colors duration-300 group-hover:text-primary"
-            strokeWidth={1.5}
-          />
-        </div>
+      <div className="relative z-10 flex flex-col justify-end h-full gap-5">
         <div>
           <h3 className="label-caps text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary mb-2">
             {feature.label}
