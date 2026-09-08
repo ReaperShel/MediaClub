@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, memo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { CameraScene } from "@/components/3d/camera-scene";
-import { cameraHotspots } from "./camera-hotspots";
+import { categoryCards } from "./camera-hotspots";
 import { useTransition } from "@/components/transition-context";
-import { MotionLink } from "@/components/ui/motion-link";
 import { interactiveSpring } from "@/components/ui/motion-variants";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Link } from "@tanstack/react-router";
 
 const routeToId: Record<string, string> = {
   "/photos": "photos",
@@ -26,7 +26,76 @@ const labelText: Record<string, string> = {
   news: "CAMPUS NEWS",
 };
 
-const LABEL_IDS = ["photos", "highlights", "videos", "news"] as const;
+const CameraLabels = memo(function CameraLabels({
+  hoveredCameraId,
+  breakpoint,
+  onLabelClick,
+}: {
+  hoveredCameraId: string | null;
+  breakpoint: string;
+  onLabelClick: (id: string, e: React.MouseEvent) => void;
+}) {
+  const positions =
+    breakpoint === "mobile"
+      ? LABEL_POSITIONS_MOBILE
+      : breakpoint === "tablet"
+        ? LABEL_POSITIONS_TABLET
+        : LABEL_POSITIONS;
+  return (
+    <>
+      {LABEL_IDS.map((id) => {
+        const isActive = hoveredCameraId === id;
+        const left = positions[id]?.left ?? "50%";
+        return (
+          <motion.button
+            key={id}
+            type="button"
+            onClick={(e) => onLabelClick(id, e)}
+            className="label-caps absolute -translate-x-1/2 cursor-pointer select-none border-none bg-transparent p-0 text-left font-normal outline-none"
+            style={{
+              left: left,
+              bottom: "10%",
+              color: isActive ? "var(--primary, #f97316)" : "rgba(255,255,255,0.85)",
+              opacity: isActive ? 1 : 0.65,
+              letterSpacing: isActive ? "0.22em" : "0.16em",
+              fontSize: "clamp(0.7rem, 1.2vw, 0.85rem)",
+              textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+              whiteSpace: "nowrap",
+              pointerEvents: "auto",
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{
+              ...interactiveSpring,
+              ...(isActive
+                ? {
+                    color: { duration: 0.25 },
+                    opacity: { duration: 0.25 },
+                    letterSpacing: { duration: 0.25 },
+                  }
+                : {}),
+            }}
+          >
+            {labelText[id] ?? id.toUpperCase()}
+            <motion.span
+              className="block h-px bg-primary"
+              style={{
+                margin: "4px auto 0",
+                backgroundColor: "var(--primary, #f97316)",
+                opacity: isActive ? 0.9 : 0,
+              }}
+              initial={{ width: "0%" }}
+              animate={{ width: isActive ? "50%" : "0%" }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            />
+          </motion.button>
+        );
+      })}
+    </>
+  );
+});
+
+const LABEL_IDS: readonly string[] = ["photos", "highlights", "videos", "news"];
 
 const LABEL_POSITIONS: Record<string, { left: string }> = {
   photos: { left: "16%" },
@@ -157,7 +226,6 @@ function LensZoomOverlay() {
 export function CameraHero() {
   const { startTransition } = useTransition();
   const [hovered3DCamera, setHovered3DCamera] = useState<string | null>(null);
-  const [hoveredBottomCard, setHoveredBottomCard] = useState<string | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [breakpoint, setBreakpoint] = useState(() => {
     if (typeof window === "undefined") return "desktop";
@@ -186,10 +254,6 @@ export function CameraHero() {
 
   const handle3DHover = useCallback((id: string | null) => {
     setHovered3DCamera(id);
-  }, []);
-
-  const handleCardHover = useCallback((camId: string | null) => {
-    setHoveredBottomCard(camId);
   }, []);
 
   const handleLabelClick = useCallback(
@@ -236,113 +300,65 @@ export function CameraHero() {
             width: "100vw",
           }}
         >
-          <CameraScene hoveredId={hovered3DCamera} onHover={handle3DHover} />
+          <CameraScene onHover={handle3DHover} />
           <LensZoomOverlay />
           <div className="absolute inset-0" style={{ pointerEvents: "none", zIndex: 2 }}>
-            {LABEL_IDS.map((id) => {
-              const isActive = hovered3DCamera === id;
-              const positions =
-                breakpoint === "mobile"
-                  ? LABEL_POSITIONS_MOBILE
-                  : breakpoint === "tablet"
-                    ? LABEL_POSITIONS_TABLET
-                    : LABEL_POSITIONS;
-              const left = positions[id]?.left ?? "50%";
-              return (
-                <motion.button
-                  key={id}
-                  type="button"
-                  onClick={(e) => handleLabelClick(id, e)}
-                  className="label-caps absolute -translate-x-1/2 cursor-pointer select-none border-none bg-transparent p-0 text-left font-normal outline-none"
-                  style={{
-                    left: left,
-                    bottom: "10%",
-                    color: isActive ? "var(--primary, #f97316)" : "rgba(255,255,255,0.85)",
-                    opacity: isActive ? 1 : 0.65,
-                    letterSpacing: isActive ? "0.22em" : "0.16em",
-                    fontSize: "clamp(0.7rem, 1.2vw, 0.85rem)",
-                    textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                    whiteSpace: "nowrap",
-                    pointerEvents: "auto",
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{
-                    ...interactiveSpring,
-                    ...(isActive
-                      ? {
-                          color: { duration: 0.25 },
-                          opacity: { duration: 0.25 },
-                          letterSpacing: { duration: 0.25 },
-                        }
-                      : {}),
-                  }}
-                >
-                  {labelText[id] ?? id.toUpperCase()}
-                  <motion.span
-                    className="block h-px bg-primary"
-                    style={{
-                      margin: "4px auto 0",
-                      backgroundColor: "var(--primary, #f97316)",
-                      opacity: isActive ? 0.9 : 0,
-                    }}
-                    initial={{ width: "0%" }}
-                    animate={{ width: isActive ? "50%" : "0%" }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                  />
-                </motion.button>
-              );
-            })}
+            <CameraLabels
+              hoveredCameraId={hovered3DCamera}
+              breakpoint={breakpoint}
+              onLabelClick={handleLabelClick}
+            />
           </div>
         </div>
       )}
 
-      <ul className="mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[5px] pb-2 md:mt-7 [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:place-items-center md:overflow-visible md:px-0 lg:grid-cols-4 lg:gap-4">
-        {cameraHotspots.map((h) => {
-          const camId = routeToId[h.to] ?? null;
-          const active = hoveredBottomCard === camId && camId !== null;
-          return (
-            <li
-              key={h.cam}
-              className="snap-start shrink-0 md:shrink-0"
-              style={{ width: "clamp(150px, 40vw, 200px)" }}
-            >
-              <MotionLink
-                to={h.to}
-                onMouseEnter={() => handleCardHover(camId)}
-                onMouseLeave={() => handleCardHover(null)}
-                className="group flex w-full min-w-0 h-auto flex-col items-center justify-center gap-1.5 rounded-[14px] border px-4 py-3.5 text-center backdrop-blur-sm md:h-[130px] md:w-[220px] md:max-w-[220px] md:min-w-[220px]"
-                style={{
-                  borderColor: active ? "var(--primary)" : "rgba(255,255,255,0.12)",
-                  background: active ? "rgba(255,154,60,0.06)" : "rgba(255,255,255,0.02)",
-                  boxShadow: active
-                    ? "0 8px 32px rgba(255,154,60,0.14), 0 2px 8px rgba(0,0,0,0.3)"
-                    : "0 2px 8px rgba(0,0,0,0.2)",
-                }}
-                underline={false}
-              >
-                <span
-                  className="label-caps whitespace-nowrap leading-none transition-colors duration-300"
-                  style={{
-                    color: active ? "var(--primary)" : "var(--muted-foreground)",
-                  }}
-                >
-                  {h.cam}
-                </span>
-                <span
-                  className="font-display whitespace-nowrap text-[0.95rem] font-semibold uppercase leading-tight tracking-tight transition-colors duration-300"
-                  style={{
-                    color: "var(--foreground)",
-                    opacity: active ? 1 : 0.85,
-                  }}
-                >
-                  {h.label}
-                </span>
-              </MotionLink>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="mt-5 md:mt-7">
+        <CategoryGrid />
+      </div>
     </section>
   );
 }
+
+const CategoryGrid = memo(function CategoryGrid() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px border border-border rounded-sm overflow-hidden bg-border">
+      {categoryCards.map((card) => (
+        <Link
+          key={card.id}
+          to={card.to}
+          className="category-card group relative flex items-center justify-between bg-background px-6 py-5 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none"
+            style={{
+              background: `radial-gradient(circle, var(--primary) 1px, transparent 1px)`,
+              backgroundSize: "8px 8px",
+            }}
+          />
+          <span className="relative label-caps text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+            {card.label}
+          </span>
+          <span className="relative text-muted-foreground transition-all duration-300 group-hover:text-primary group-hover:translate-x-1">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M5 3L9 7L5 11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+});

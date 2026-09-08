@@ -142,7 +142,8 @@ const MOBILE_LIGHT_Z_OFFSET = 0.1;
 
 const CameraModel = memo(function CameraModel({
   modelConfig,
-  onHover,
+  onHoverEnter,
+  onHoverLeave,
   onDragChange,
   onCameraClick,
   onFocusPoint,
@@ -156,7 +157,8 @@ const CameraModel = memo(function CameraModel({
   isMobile,
 }: {
   modelConfig: ModelConfig;
-  onHover: (id: string | null) => void;
+  onHoverEnter: (id: string) => void;
+  onHoverLeave: (id: string) => void;
   onDragChange?: (dragging: boolean) => void;
   onCameraClick?: (id: string, route: string) => void;
   onFocusPoint?: (point: { x: number; y: number }) => void;
@@ -198,9 +200,9 @@ const CameraModel = memo(function CameraModel({
   );
   const focusOpacityRef = useRef(1);
   const baseBottomYRef = useRef(0);
+  const isHoveredRef = useRef(false);
   const { camera } = useThree();
   const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const isFocused = isTransitioning && transitioningId === modelConfig.id;
   const isDimmed = isTransitioning && transitioningId !== modelConfig.id;
@@ -285,17 +287,29 @@ const CameraModel = memo(function CameraModel({
     }
   }, []);
 
-  const handlePointerOver = useCallback(() => {
-    setIsHovered(true);
-    onHover(modelConfig.id);
-    invalidate();
-  }, [modelConfig.id, onHover]);
+  const handlePointerEnter = useCallback(
+    (e: THREE.Event & { stopPropagation?: () => void }) => {
+      e.stopPropagation?.();
+      isHoveredRef.current = true;
+      onHoverEnter(modelConfig.id);
+      const c = document.querySelector("canvas");
+      if (c && !isDraggingRef.current) c.style.cursor = "grab";
+      invalidate();
+    },
+    [modelConfig.id, onHoverEnter]
+  );
 
-  const handlePointerOut = useCallback(() => {
-    setIsHovered(false);
-    onHover(null);
-    invalidate();
-  }, [onHover]);
+  const handlePointerLeave = useCallback(
+    (e: THREE.Event & { stopPropagation?: () => void }) => {
+      e.stopPropagation?.();
+      isHoveredRef.current = false;
+      onHoverLeave(modelConfig.id);
+      const c = document.querySelector("canvas");
+      if (c && !isDraggingRef.current) c.style.cursor = "default";
+      invalidate();
+    },
+    [modelConfig.id, onHoverLeave]
+  );
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -442,12 +456,6 @@ const CameraModel = memo(function CameraModel({
   ]);
 
   useEffect(() => {
-    const c = document.querySelector("canvas");
-    if (!c) return;
-    c.style.cursor = isDragging ? "grabbing" : isHovered ? "grab" : c.style.cursor;
-  }, [isDragging, isHovered]);
-
-  useEffect(() => {
     if (!placementRef.current || !normalizedRef.current || !loadedSceneRef.current) return;
 
     if (responsiveScaleRef.current) {
@@ -489,10 +497,11 @@ const CameraModel = memo(function CameraModel({
     const enableHover = !isTransitioning && !prefersReducedMotion;
     const enableFocus = !prefersReducedMotion;
     const targetScale =
-      (isHovered && enableHover ? 1.04 : 1.0) + (isFocused && enableFocus ? 0.08 : 0);
-    const targetZ = (isHovered && enableHover ? 0.08 : 0.0) + (isFocused && enableFocus ? 0.2 : 0);
-    const targetRotY = isHovered && enableHover ? THREE.MathUtils.degToRad(3) : 0;
-    const targetRotX = isHovered && enableHover ? THREE.MathUtils.degToRad(1.5) : 0;
+      (isHoveredRef.current && enableHover ? 1.04 : 1.0) + (isFocused && enableFocus ? 0.08 : 0);
+    const targetZ =
+      (isHoveredRef.current && enableHover ? 0.08 : 0.0) + (isFocused && enableFocus ? 0.2 : 0);
+    const targetRotY = isHoveredRef.current && enableHover ? THREE.MathUtils.degToRad(3) : 0;
+    const targetRotX = isHoveredRef.current && enableHover ? THREE.MathUtils.degToRad(1.5) : 0;
     const targetFocusOpacity = isDimmed && enableFocus ? 0.6 : 1.0;
 
     const speed = prefersReducedMotion ? 20 : 10;
@@ -514,9 +523,9 @@ const CameraModel = memo(function CameraModel({
     }
 
     const needsMaterialUpdate =
-      isHovered || isFocused || isDimmed || focusOpacityRef.current < 0.98;
+      isHoveredRef.current || isFocused || isDimmed || focusOpacityRef.current < 0.98;
     if (!prefersReducedMotion && materialBoostsRef.current.size > 0 && needsMaterialUpdate) {
-      const boostTarget = isHovered && enableHover ? 1 : 0;
+      const boostTarget = isHoveredRef.current && enableHover ? 1 : 0;
       const boostT = 1 - Math.exp(-8 * delta);
       materialBoostsRef.current.forEach((original, mesh) => {
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -543,7 +552,7 @@ const CameraModel = memo(function CameraModel({
       });
     }
 
-    const hoverActive = enableHover && (isHovered || isFocused || isDimmed);
+    const hoverActive = enableHover && (isHoveredRef.current || isFocused || isDimmed);
     const animStillRunning =
       Math.abs(hoverAnimRef.current.scale - targetScale) > 0.001 ||
       Math.abs(hoverAnimRef.current.z - targetZ) > 0.001 ||
@@ -557,8 +566,8 @@ const CameraModel = memo(function CameraModel({
     <group
       ref={placementRef}
       onPointerDown={handlePointerDown}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onDoubleClick={handleDoubleClick}
     >
       <group
@@ -785,7 +794,6 @@ const ShelfLight = memo(function ShelfLight({
 
     if (lightRef.current) {
       lightRef.current.intensity = val * (isMobile ? 55 : 85);
-      lightRef.current.castShadow = val > 0.01 && !isMobile;
     }
     if (fillLightRef.current) {
       fillLightRef.current.intensity = val * (isMobile ? 8 : 14);
@@ -900,15 +908,13 @@ const ShelfLight = memo(function ShelfLight({
   );
 });
 
-function Scene({
-  hoveredId,
+const Scene = memo(function Scene({
   onHover,
   shadowSize,
   isVisible,
   isTabVisible,
   isMobile,
 }: {
-  hoveredId: string | null;
   onHover: (id: string | null) => void;
   shadowSize: number;
   isVisible: boolean;
@@ -935,6 +941,40 @@ function Scene({
   const [lightToggled, setLightToggled] = useState<Set<string>>(new Set());
   const focusPointRef = useRef<{ x: number; y: number } | null>(null);
   const { gl, camera } = useThree();
+
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hoverRef = useRef<string | null>(null);
+  const pendingLeaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHoverEnter = useCallback(
+    (id: string) => {
+      if (pendingLeaveRef.current) {
+        clearTimeout(pendingLeaveRef.current);
+        pendingLeaveRef.current = null;
+      }
+      if (hoverRef.current !== id) {
+        hoverRef.current = id;
+        setHoveredId(id);
+        onHover(id);
+      }
+    },
+    [onHover]
+  );
+
+  const handleHoverLeave = useCallback(
+    (id: string) => {
+      if (pendingLeaveRef.current) clearTimeout(pendingLeaveRef.current);
+      pendingLeaveRef.current = setTimeout(() => {
+        if (hoverRef.current === id) {
+          hoverRef.current = null;
+          setHoveredId(null);
+          onHover(null);
+        }
+        pendingLeaveRef.current = null;
+      }, 0);
+    },
+    [onHover]
+  );
 
   useEffect(() => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1034,7 +1074,8 @@ function Scene({
             <CameraModel
               key={m.id}
               modelConfig={m}
-              onHover={onHover}
+              onHoverEnter={handleHoverEnter}
+              onHoverLeave={handleHoverLeave}
               onDragChange={setIsDragging}
               onCameraClick={handleCameraClick}
               onFocusPoint={handleFocusPoint}
@@ -1077,7 +1118,7 @@ function Scene({
       </group>
     </ParallaxGroup>
   );
-}
+});
 
 /**
  * Fires `onReady` once Three.js has rendered the first frame.
@@ -1095,11 +1136,9 @@ function SceneReadySignal({ onReady }: { onReady: () => void }) {
   return null;
 }
 
-export function CameraScene({
-  hoveredId,
+export const CameraScene = memo(function CameraScene({
   onHover,
 }: {
-  hoveredId: string | null;
   onHover: (id: string | null) => void;
 }) {
   const [height, setHeight] = useState("70vh");
@@ -1207,7 +1246,6 @@ export function CameraScene({
               onIncline={() => setDpr([1, 1.25])}
             >
               <Scene
-                hoveredId={hoveredId}
                 onHover={onHover}
                 shadowSize={shadowSize}
                 isVisible={isVisible}
@@ -1221,4 +1259,4 @@ export function CameraScene({
       </div>
     </div>
   );
-}
+});

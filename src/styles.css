@@ -126,3 +126,11 @@
   line-height: 0.92;
   text-transform: uppercase;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .category-card,
+  .category-card * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
