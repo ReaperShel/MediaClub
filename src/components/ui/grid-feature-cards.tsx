@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import type { CategoryCard } from "@/components/hero/camera-hotspots";
 
-const GRID_COLS_CLASSES = "grid grid-cols-1 sm:grid-cols-4";
+const GRID_COLS_CLASSES = "grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4";
 
 function AnimatedContainer({
   className,
@@ -115,11 +115,7 @@ export function FeatureGrid({
   return (
     <AnimatedContainer
       delay={delay}
-      className={[
-        GRID_COLS_CLASSES,
-        "divide-x divide-y divide-dashed border border-dashed",
-        className ?? "",
-      ].join(" ")}
+      className={[GRID_COLS_CLASSES, "border border-dashed", className ?? ""].join(" ")}
     >
       {features.map((feature) => (
         <FeatureCardInner key={feature.id} feature={feature} />
