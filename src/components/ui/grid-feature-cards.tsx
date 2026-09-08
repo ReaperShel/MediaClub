@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import type { CategoryCard } from "@/components/hero/camera-hotspots";
 
-const GRID_COLS_CLASSES = "grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4";
+const GRID_COLS_CLASSES = "grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4";
 
 function AnimatedContainer({
   className,
@@ -38,8 +38,7 @@ function FeatureCardInner({ feature }: { feature: CategoryCard }) {
   return (
     <Link
       to={feature.to}
-      className="feature-card group relative flex flex-col justify-end overflow-hidden bg-background p-7 sm:p-8 md:p-9 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      style={{ minHeight: "clamp(240px, 26vw, 290px)" }}
+      className="feature-card group relative flex flex-col justify-end overflow-hidden bg-background p-4 sm:p-8 md:p-9 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div
         aria-hidden="true"
@@ -69,19 +68,19 @@ function FeatureCardInner({ feature }: { feature: CategoryCard }) {
             "radial-gradient(ellipse 70% 50% at 50% -10%, black 25%, transparent 70%)",
         }}
       />
-      <div className="relative z-10 flex flex-col justify-end h-full gap-5">
+      <div className="relative z-10 flex flex-col justify-end h-full gap-4 sm:gap-5">
         <div>
-          <h3 className="label-caps text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary mb-2">
+          <h3 className="text-xs sm:text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary mb-1.5 sm:mb-2">
             {feature.label}
           </h3>
-          <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-[260px]">
+          <p className="text-[11px] sm:text-xs text-muted-foreground/70 leading-relaxed max-w-[260px] hidden sm:block">
             {feature.description}
           </p>
         </div>
       </div>
       <span
         aria-hidden="true"
-        className="absolute bottom-5 right-5 text-muted-foreground transition-all duration-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 opacity-0 group-hover:opacity-100"
+        className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 text-muted-foreground transition-all duration-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 opacity-0 group-hover:opacity-100"
       >
         <svg
           width="14"
