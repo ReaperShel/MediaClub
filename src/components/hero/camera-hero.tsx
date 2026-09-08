@@ -7,6 +7,7 @@ import { useTransition } from "@/components/transition-context";
 import { interactiveSpring } from "@/components/ui/motion-variants";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "@tanstack/react-router";
+import { Camera, Sparkles, Video, Newspaper } from "lucide-react";
 
 const routeToId: Record<string, string> = {
   "/photos": "photos",
@@ -312,8 +313,10 @@ export function CameraHero() {
         </div>
       )}
 
-      <div className="mt-5 md:mt-7">
-        <CategoryGrid />
+      <div className="mt-6 md:mt-8">
+        <div className="mx-auto max-w-[1150px] px-5 md:px-8">
+          <CategoryGrid />
+        </div>
       </div>
     </section>
   );
@@ -321,44 +324,75 @@ export function CameraHero() {
 
 const CategoryGrid = memo(function CategoryGrid() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px border border-border rounded-sm overflow-hidden bg-border">
-      {categoryCards.map((card) => (
-        <Link
-          key={card.id}
-          to={card.to}
-          className="category-card group relative flex items-center justify-between bg-background px-6 py-5 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
-        >
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none"
-            style={{
-              background: `radial-gradient(circle, var(--primary) 1px, transparent 1px)`,
-              backgroundSize: "8px 8px",
-            }}
-          />
-          <span className="relative label-caps text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-            {card.label}
-          </span>
-          <span className="relative text-muted-foreground transition-all duration-300 group-hover:text-primary group-hover:translate-x-1">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+    <div className="category-grid grid grid-cols-1 md:grid-cols-2">
+      {categoryCards.map((card) => {
+        const Icon = card.icon;
+        return (
+          <Link
+            key={card.id}
+            to={card.to}
+            className="category-card group relative flex flex-col justify-between overflow-hidden bg-background px-7 py-8 md:px-9 md:py-10 transition-colors duration-300 hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            style={{ minHeight: "clamp(240px, 28vw, 310px)" }}
+          >
+            <div
               aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                backgroundImage: "radial-gradient(circle, var(--primary) 1px, transparent 1px)",
+                backgroundSize: "10px 10px",
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.35] transition-opacity duration-300 group-hover:opacity-[0.55]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 22px), repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 22px)",
+                maskImage:
+                  "radial-gradient(ellipse 80% 55% at 50% -10%, black 30%, transparent 70%)",
+                WebkitMaskImage:
+                  "radial-gradient(ellipse 80% 55% at 50% -10%, black 30%, transparent 70%)",
+              }}
+            />
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              <div>
+                <Icon
+                  className="h-5 w-5 text-muted-foreground transition-colors duration-300 group-hover:text-primary"
+                  strokeWidth={1.5}
+                />
+              </div>
+              <div>
+                <h3 className="label-caps text-sm tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary mb-2">
+                  {card.label}
+                </h3>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-[280px]">
+                  {card.description}
+                </p>
+              </div>
+            </div>
+            <span
+              aria-hidden="true"
+              className="absolute bottom-5 right-5 text-muted-foreground transition-all duration-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 opacity-0 group-hover:opacity-100"
             >
-              <path
-                d="M5 3L9 7L5 11"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-        </Link>
-      ))}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 3L9 7L5 11"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 });
